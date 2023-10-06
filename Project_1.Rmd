@@ -1,0 +1,25 @@
+---
+title: "Project 1"
+author: "Han Ji"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load packages
+library(knitr)
+library(tidyverse)
+
+# Load data
+df_tobacco <- read.csv("project1.csv")
+```
+
+
+```{r}
+
+cor(df_tobacco$bpm_att, df_tobacco$bpm_att_p, use = "complete.obs")
+
+```
+
