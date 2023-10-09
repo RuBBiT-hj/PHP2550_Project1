@@ -2,24 +2,314 @@
 title: "Project 1"
 author: "Han Ji"
 date: "`r Sys.Date()`"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
+knitr::opts_chunk$set(include = FALSE)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(out.width = "300px")
 # Load packages
 library(knitr)
 library(tidyverse)
+```
 
+```{r, include=FALSE}
 # Load data
 df_tobacco <- read.csv("project1.csv")
+parent_df <- read.csv("Project 1 Pre-Processing/K01BB.csv") %>%
+  filter(redcap_event_name == "parent_baseline_arm_2") %>%
+  select(c(parent_id, page:chart23)) 
+child_df <- read.csv("Project 1 Pre-Processing//K01BB.csv")
+
+child_df <- child_df %>%
+  select(c(participant_id:su_interview_complete))  %>%
+  filter(redcap_event_name == "child_baseline_arm_1")
 ```
 
+## Data Description
+
+The data set is a survey study with 49 pairs of children and their mothers at birth. The main interest of this study is to examine how smoking during pregnancy (SDP) and environmental tobacco smoke (ETS) exposure will affect self-regulation, externalizing behavior, and substance use on children. This study is based on a previous study that recorded the smoking exposure from pregnancy to 6 months postpartum, and these 49 pairs of children and mothers are randomly and recruited to the current study. In addition to the previous records, this data set contains demographic information of mothers and children, their substance use habits, and the evaluations of their self-regulation, externalizing behavior, and parental knowledge. Also, the survey asks mothers to reflect whether the children were exposed to smoking from 0 to 6 months until 5 years postpartum.
+
+## Data Processing
 
 ```{r}
+# sum of race selected
+df_tobacco <- df_tobacco %>% 
+  mutate(num_trace = taian + tasian + tnhpi + tblack + twhite + trace_other)
+df_tobacco <- df_tobacco %>% 
+  mutate(num_prace = paian + pasian + pnhpi + pblack + pwhite + prace_other)
 
-cor(df_tobacco$bpm_att, df_tobacco$bpm_att_p, use = "complete.obs")
+# change value
+df_tobacco$income_new <- df_tobacco$income
+df_tobacco$income_new[df_tobacco$income_new == ""] <- NA
+df_tobacco$income_new[df_tobacco$income_new == "250, 000"] <- 250000
+df_tobacco$income_new <- as.numeric(df_tobacco$income_new)
+
+# outlier
+df_tobacco$momcig[df_tobacco$momcig > 30] <- 30
+# 2 black and miles a day - cigar
+# we first deal with the values we are more sure
+df_tobacco$mom_numcig[df_tobacco$mom_numcig == ""] <- NA
+df_tobacco$mom_numcig[df_tobacco$mom_numcig == "None"] <- 0
+# use the maximum observed values
+df_tobacco$mom_numcig[df_tobacco$mom_numcig == "2 black and miles a day"] <- 25
+df_tobacco$mom_numcig[df_tobacco$mom_numcig == "20-25"] <- 25
+df_tobacco$mom_numcig[df_tobacco$mom_numcig == "44989"] <- 25
+df_tobacco$mom_numcig <- as.numeric(df_tobacco$mom_numcig)
+
+### merge exposure into a new variable - first post til 6 mo
+# as the post. exposure indicator
+
+previous_pp <- c("mom_smoke_pp1", "mom_smoke_pp2", "mom_smoke_pp12wk",
+                 "mom_smoke_pp6mo")
+df_tobacco$mom_smoke_pp1 <- ifelse(df_tobacco$mom_smoke_pp1 == "1=Yes", 1, 0)
+df_tobacco$mom_smoke_pp2 <- ifelse(df_tobacco$mom_smoke_pp2 == "1=Yes", 1, 0)
+df_tobacco$mom_smoke_pp12wk <- ifelse(df_tobacco$mom_smoke_pp12wk == "1=Yes", 1, 0)
+df_tobacco$mom_smoke_pp6mo <- ifelse(df_tobacco$mom_smoke_pp6mo == "1=Yes", 1, 0)
+
+df_tobacco$previous_pp6mo <- 
+  ifelse(rowSums(!is.na(df_tobacco[, previous_pp])) == 0, NA,
+       rowSums(df_tobacco[, previous_pp], na.rm = TRUE))
+
+df_tobacco$previous_pp6mo_num <- rowSums(!is.na(df_tobacco[, previous_pp]))
+df_tobacco$previous_pp6mo_prop <- df_tobacco$previous_pp6mo/
+  df_tobacco$previous_pp6mo_num
+
+# also merge the ones when pregnant
+previous_preg <- c("mom_smoke_16wk", "mom_smoke_22wk", "mom_smoke_32wk")
+
+df_tobacco$mom_smoke_16wk <- ifelse(df_tobacco$mom_smoke_16wk == "1=Yes", 1, 0)
+df_tobacco$mom_smoke_22wk <- ifelse(df_tobacco$mom_smoke_22wk == "1=Yes", 1, 0)
+df_tobacco$mom_smoke_32wk <- ifelse(df_tobacco$mom_smoke_32wk == "1=Yes", 1, 0)
+df_tobacco$previous_32wk <- 
+  ifelse(rowSums(!is.na(df_tobacco[, previous_preg])) == 0, NA,
+         rowSums(df_tobacco[, previous_preg], na.rm = TRUE))
+
+# create the severity for prenatal - previous_32wk > 1
+df_tobacco$SDP <- ifelse(df_tobacco$previous_32wk > 1, 1, 0)
+
+# form a variable combined from the previous study and reflection for 0-6 mo
+df_tobacco$combined_pp6mo <- ifelse(df_tobacco$previous_pp6mo!=0 | 
+                                      df_tobacco$smoke_exposure_6mo == 1,
+                                    1,0)
+# merge the ones after 
+pp_all <- c("smoke_exposure_12mo", "smoke_exposure_2yr",
+            "smoke_exposure_3yr", "smoke_exposure_4yr",
+            "smoke_exposure_5yr")
+# use both cotimean and combined exposure
+
+df_tobacco$final_pp6mo <- ifelse(df_tobacco$combined_pp6mo == 1 |
+                                   df_tobacco$cotimean_pp6mo_baby > 5, 1, 0)
+
+# create the severity for postnatal
+df_tobacco$pp_5yr <- ifelse(rowSums(!is.na(df_tobacco[, c("final_pp6mo",
+                                                          pp_all)])) == 0, NA,
+                            rowSums(df_tobacco[, c("final_pp6mo",
+                                                   pp_all)], na.rm = TRUE))
+
+## child attention - recalculate
+child_brief <- c("bpm_att", "bpm_ext", "bpm_int")
+child_brief_approx <- c("bpm_att_approx", "bpm_ext_approx", "bpm_int_approx")
+
+child_df <- child_df %>%
+  mutate(bpm_att_approx = rowMeans(dplyr::select(., c(bpm1,bpm3,bpm4,bpm5,bpm10)),
+                           na.rm = TRUE)*5,
+         bpm_ext_approx = rowMeans(dplyr::select(., c(bpm2,bpm6,bpm7,bpm8,bpm15,
+                                              bpm16,bpm17)),
+                           na.rm = TRUE)*7,
+         bpm_int_approx = rowMeans(dplyr::select(., c(bpm9,bpm11,bpm12,bpm13,bpm18,
+                                              bpm19)),
+                           na.rm = TRUE)*6,
+         erq_cog_approx = rowMeans(dplyr::select(., c(erq1,erq3,erq5,erq7,
+                                               erq8,erq10)),
+                            na.rm = TRUE),
+         erq_exp_approx = rowMeans(dplyr::select(., c(erq2,erq4,erq6,
+                                               erq9)),
+                            na.rm = TRUE))
+df_tobacco$bpm_att_approx <- 
+  child_df$bpm_att_approx[match(df_tobacco$parent_id, child_df$parent_id)]
+
+df_tobacco$bpm_ext_approx <- 
+  child_df$bpm_ext_approx[match(df_tobacco$parent_id, child_df$parent_id)]
+
+df_tobacco$bpm_int_approx <- 
+  child_df$bpm_int_approx[match(df_tobacco$parent_id, child_df$parent_id)]
+
+df_tobacco$erq_cog_approx <- 
+  child_df$erq_cog_approx[match(df_tobacco$parent_id, child_df$parent_id)]
+
+df_tobacco$erq_exp_approx <- 
+  child_df$erq_exp_approx[match(df_tobacco$parent_id, child_df$parent_id)]
+# recreate the outcome variables - saved as new
+# use the mean of the non-missing values * the number of questions - approximate
+parent_df <- parent_df %>% 
+  mutate(
+    erq_cog_a_approx = rowMeans(dplyr::select(., c(perq1,perq3,perq5,perq7,
+                                            perq8,perq10)), na.rm=TRUE),
+    erq_exp_a_approx = rowMeans(dplyr::select(., c(perq2,perq4,perq6,
+                                            perq9)),  na.rm=TRUE),
+    bpm_att_p_approx = rowMeans(dplyr::select(., c(pbpm1,pbpm3,pbpm4,pbpm5,pbpm10)),
+                             na.rm = TRUE)*5,
+    bpm_ext_p_approx = rowMeans(dplyr::select(., c(pbpm2,pbpm6,pbpm7,pbpm8,pbpm15,
+                                       pbpm16,pbpm17)),
+                               na.rm = TRUE)*7,
+    bpm_int_p_approx = rowMeans(dplyr::select(., c(pbpm9,pbpm11,pbpm12,pbpm13,pbpm18,
+                                       pbpm19)),
+                               na.rm = TRUE)*6,
+    bpm_att_a_approx = rowMeans(dplyr::select(., c(abpm1,abpm6,abpm7,abpm8,abpm9,
+                                           abpm12)),
+                               na.rm = TRUE)*6,
+    bpm_ext_a_approx = rowMeans(dplyr::select(., c(abpm3,abpm13,abpm14,abpm17,
+                                           abpm18)),
+                               na.rm = TRUE)*5,
+    bpm_int_a_approx = rowMeans(dplyr::select(., c(abpm2,abpm4,abpm5,abpm10,abpm15,
+                                           abpm16)),
+                               na.rm = TRUE)*6) %>% 
+  mutate(new_ppmq9 = 5-ppmq9,
+         new_ppmqcd3 = 5-ppmqcd3,
+         new_ppmqcd4 = 5-ppmqcd4) %>% 
+  mutate(
+    ppmq_parental_knowledge = rowMeans(dplyr::select(., c(ppmq1,ppmq2,ppmq3,ppmq4,
+                                                          ppmq5,ppmq6,ppmq7,ppmq8,
+                                                          new_ppmq9)),
+                                       na.rm = TRUE),
+    ppmq_child_disclosure = rowMeans(dplyr::select(., c(ppmqcd1,ppmqcd2,
+                                                        new_ppmqcd3,new_ppmqcd4,
+                                                        ppmqcd5)),
+                                     na.rm = TRUE),
+    ppmq_parental_solicitation = rowMeans(dplyr::select(., c(ppmqps1:ppmqps5)),
+                                          na.rm = TRUE),
+    ppmq_parental_control = rowMeans(dplyr::select(., ppmqpc1:ppmqpc5),
+                                     na.rm=TRUE))
+
+df_tobacco$erq_cog_a_approx <- 
+  parent_df$erq_cog_a_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$erq_exp_a_approx <- 
+  parent_df$erq_exp_a_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+
+df_tobacco$bpm_att_p_approx <- 
+  parent_df$bpm_att_p_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$bpm_ext_p_approx <- 
+  parent_df$bpm_ext_p_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$bpm_int_p_approx <- 
+  parent_df$bpm_int_p_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+
+df_tobacco$bpm_att_a_approx <- 
+  parent_df$bpm_att_a_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$bpm_ext_a_approx <- 
+  parent_df$bpm_ext_a_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$bpm_int_a_approx <- 
+  parent_df$bpm_int_a_approx[match(df_tobacco$parent_id,  parent_df$parent_id)]
+
+df_tobacco$ppmq_parental_knowledge_approx <- 
+  parent_df$ppmq_parental_knowledge[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$ppmq_child_disclosure_approx <- 
+  parent_df$ppmq_child_disclosure[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$ppmq_parental_solicitation_approx <- 
+  parent_df$ppmq_parental_solicitation[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$ppmq_parental_control_approx <- 
+  parent_df$ppmq_parental_control[match(df_tobacco$parent_id,  parent_df$parent_id)]
+
+
+# swan hyperactive and inattentive - need to go back to the original study
+# change some 0 values to NA if they were all NA
+
+
+parent_df$swan_inattentive <-
+  ifelse(rowSums(!is.na(parent_df %>% select(swan1:swan9))) == 0, NA,
+         rowSums(parent_df %>% select(swan1:swan9), na.rm = TRUE))
+
+parent_df$swan_hyperactive <-
+  ifelse(rowSums(!is.na(parent_df %>% select(swan10:swan18))) == 0, NA,
+         rowSums(parent_df %>% select(swan10:swan18), na.rm = TRUE))
+
+df_tobacco$swan_inattentive <- parent_df$swan_inattentive[match(df_tobacco$parent_id,  parent_df$parent_id)]
+df_tobacco$swan_hyperactive <- parent_df$swan_hyperactive[match(df_tobacco$parent_id,  parent_df$parent_id)]
+
+
 
 ```
 
+We change outliers to the maximum possible or observed values. For example, in the question "on how many of the past 30 days did you smoke cigarettes?", we change all values above 30 into 30 days. For the questionnaire responses, if there are some responses missing, we use the non-missing values approximate the participant's answer (observed mean for average response; observed mean times the number of questions for sum). Otherwise, the number of complete data within each type of questionnaire would be too small.
+
+## Data Quality
+
+### Missing Data
+
+For survey data, it's common to have many missing values. In this survey, the demographic variable race is presented as checkbox for participants where 0 means the participant didn't check the corresponding option, and thus this variable doesn't have missingness. We then use the number of races checked as indicator to explore missing patterns. There are 13 children didn't check any race options, and 12 of them miss all child-related information (Fig. 1). Moreover, one of them misses all information from the previous study. There are 8 parents didn't check any race options, and all of them miss all parent-related information in the current survey. 7 observations even miss all information related to the current survey. This causes the actual data size to be even smaller.
+
+Besides, there are missing patterns within each category of variables For example, some observations miss all substance use information instead of only one or two responses missing, implying an occurrence pattern (Fig. 2).
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Missing patterns observed in the data. The rows represent missing in the all information related tp the previous study, parent information, and children information in the current study, respectively."}
+include_graphics(path = "missing_pattern.png")
+```
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Missing patterns observed within substance use of mothers."}
+include_graphics(path = "missing_pattern_2.png")
+```
+
+### Consistency
+
+We also checked the consistency between related variables to see if the quality of this survey data is good. There are two questions related to the smoking habit of mothers: "In the past 6 months, how often have you used tobacco products?" and "On how many of the past 30 days did you smoke cigarettes?" We assume the responses are correlated, and they should answer yes on the first question if the number of cigarettes is more than 0. However, we observe a strong inconsistency between the responses (Fig. 3). Most participants who responded "never" or "once or twice" reported 0 days of smoking in the past month, but 2 participants responded 30 days. This may imply that they responded one question incorrectly or misinterpreted the question.
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Number of days smoking in the past 30 days versus the tobacco usage of mothers in the past 6 months. No participants responded monthly so this option is removed from the plot."}
+include_graphics(path = "consistent.png")
+```
+
+In the previous study, the urine cotinine, a marker for nicotine metabolite, was measured for mothers at 34 weeks gestation and measured for both mothers and babies at 6 months postpartum. We see the nicotine at 34 weeks gestation is a good indicator when comparing the number of smoking exposure responded from 16 to 32 weeks at pregnancy (Fig. 4). 
+
+We combined all responses from 0 to 6 months in the previous and current studies into a new exposure variable, and we want to check if cotinine is still a good indicator for exposure (Fig. 5). A few babies have relatively high cotinine values even if no smoking exposure reported and their mothers had low cotinine values. Also, we only see expected correlation between maternal and child cotinine values in the subset with smoking exposure reported. This result is counterintuitive and may imply some inconsistency or entry errors in our data.
+
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Urine cotinine from mothers at 34 weeks gestation versus the number of smoking exposure reported . The red dashed line proposed at 40 ug/mL can separate the data clearly."}
+include_graphics(path = "cotimean_1.png")
+```
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Urine cotinine from babies versus from mothers at 6 months postpartum. Points are colored by whether the babies were exposed to smoking from 0 to 6 months."}
+include_graphics(path = "cotimean_2.png")
+```
+
+## Questionnaire Evaluation
+
+In this survey, there are four questionnaires presented to the participants: Brief Problem Monitor, Emotion Regulation, SWAN Rating for ADHD, and Parental Knowledge. We are mainly interested in the first three and if they are associated with smoking exposure. We observe strong correlations within Brief Problem Monitor and SWAN Rating (Fig. 6, 7). Especially, we see many children are suspected to be ADHD based on the SWAN Rating responded by parents. This becomes susceptible whether this prevalence of ADHD relates to the smoking exposure since the we saw different levels of exposure. It is possible that he parents' responses don't reflect the actual behavior of their children, or the children in this data set are likely to be ADHD at the baseline. Also, the number of ASD diagnosized and suspected cases is too small, so we decided not to explore more on that variable. In addition, we also look at the correlations between answers from children and parents on child for the same survey, but none of them are high.
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="250px", fig.cap="Sum of responses related to attention problems and externalizing problems responded by children."}
+include_graphics(path = "cor_1.png")
+```
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Sum of responses on SWAN Rating responded by parents. A score of 6 or greater indicates that the child is likely ADHD (dashed lines), and the type is on the axes."}
+include_graphics(path = "cor_2.png")
+```
+
+## Prenatal/Postnatal Exposure with Self-regulation
+
+We focus on the counts of prenatal and postnatal exposures as the severity of exposures, cotinine values, and indicators whether mothers smoked during pregnancy and at 6 month postpartum combined from previous and the current studies. We want check their associations with the questionnarie responses. Among all pairwise comparisons, we see that the the indicator whether mothers smoked at 6 month postpartum can explain the attention problems somewhat (Fig. 8). Also, it also correlated with the SWAN inattentive scores (Fig. 9). Most observations are likely inattentive ADHD if they were exposed to smoking at 6 month postpartum. This may imply that smoking exposure at 6 month postpartum is related to attention problems on children overall.
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="200px", fig.cap="Sum of attention problems reported by children versus exposure to smoking at 6 month postpartum."}
+include_graphics(path = "cor_3.png")
+```
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="300px", fig.cap="SWAN inattentive scores reported by mothers versus exposure to smoking at 6 month postpartum."}
+include_graphics(path = "cor_4.png")
+```
+
+We also look at whether smoking exposure is related to substance use of children. However, the number of observations with substance use is too small, so it is not easy to find a clear pattern or draw a conclusion (Fig. 10).
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="300px", fig.cap="Urine Cotinine at 34 weeks versus children drinking alcogol ever. The number of observations with using alcohol is too low to draw a clear pattern."}
+include_graphics(path = "cor_5.png")
+```
+
+## Conclusion and Limitations
+
+Based on our exploratory analysis, we create some indicator variables for smoking exposure and severity based on the previous and current studies, and the exposure is correlated with the marker urine cotinine from mothers at least. We also see that whether the child exposed to smoking at 6 months postpartum is correlated with the attention problems in Brief Problem Monitor and SWAN Rating. 
+
+However, the quality of this data is not good, especially that the number of complete cases with both parent and child information about smoking and self-regulation is too small. Thus, we shouldn't be confident in any findings because it only represents a small subset of the population. Also, the inconsistency in the data makes the answers of the survey less trustworthy, and we may doubt whether the relationship we find reflect the truth or not.
+
+## Data Privacy
+
+The data is provided by Dr. Lauren Micalizzi from the Department Behavioral and Social Sciences at Brown. The original data cannot be shared directly for privacy. For data-related question, please email lauren_micalizzi@brown.edu.
+
+## Code Availability
+
+The code used to analyze this data can be found on: https://github.com/RuBBiT-hj/PHP2550_Project1. Although the data cannot be accessed, the code contains the steps of processing and how we explore among different values with the detailed comments.
