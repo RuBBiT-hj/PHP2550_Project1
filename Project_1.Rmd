@@ -1,5 +1,5 @@
 ---
-title: "Project 1"
+title: "Impacts of Smoking During Pregnancy and Enviromental Tobacco Smoke on Self-regulation and Substance Use in Teenagers"
 author: "Han Ji"
 date: "`r Sys.Date()`"
 output: pdf_document
