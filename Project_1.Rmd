@@ -1,5 +1,5 @@
 ---
-title: "Impacts of Smoking During Pregnancy and Enviromental Tobacco Smoke on Self-regulation and Substance Use in Teenagers"
+title: "Impacts of Smoking During Pregnancy and Envinromental Tobacco Smoke on Self-regulation and Substance Use in Teenagers"
 author: "Han Ji"
 date: "`r Sys.Date()`"
 output: pdf_document
@@ -327,7 +327,7 @@ tb_composite[, 1:4] %>%
 
 We also look at whether smoking exposure is related to substance use of children. At first, due to the number of observations with substance use is too small, it is not easy to find a clear pattern or draw a conclusion (Fig. 11). However, after coloring by ETS (intensity $\geq$ 1), we could see that teenagers with either SDP shown by urine cotinine or ETS are likely to use substance like alcohol.
 
-```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="300px", fig.cap="Urine Cotinine at 34 weeks versus children drinking alcogol ever colored by ETS."}
+```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="300px", fig.cap="Urine Cotinine at 34 weeks versus children drinking alcohol ever colored by ETS."}
 include_graphics(path = "cor_5.png")
 ```
 
