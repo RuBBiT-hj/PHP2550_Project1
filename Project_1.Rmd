@@ -3,6 +3,10 @@ title: "Project 1"
 author: "Han Ji"
 date: "`r Sys.Date()`"
 output: pdf_document
+csl: american-statistical-association.csl
+bibliography: references.bib
+link-citations: yes
+abstract: "Maternal smoking during pregnancy (SDP) and environmental tobacco smoke (ETS) exposure are known to be harmful for children’s neural development not only at birth but also over time. Previous studies have shown that SDP and ETS, separately, can cause poor performance in cognition and language as well as self-regulation problems (Margolis et al. 2023; He et al. 2018; Rashidi et al. 2020). This study aims to examine the association of SBP and ETS with self-regulation, externalizing behavior, and substance use on children both prenatally and postnatally. The participants were recruited from a previous intervention study that recorded the reported smoking exposure from mothers and urine cotinine level at 6 months postpartum (n=49).  This follow-up survey recorded the smoking exposure from 6 months to 5 years postpartum, substance use habits of mothers and children, and self- regulation related responses on children. We found SBP and ETS intensity positively correlated, and they seem to have additive effects on self-regularization problems and early substance usage in teenagers. Although the quality and consistency of data is concerning, this analysis can be used as a guidance when all participants’ answers will be collected or for other similar studies."
 ---
 
 ```{r setup, include=FALSE}
@@ -12,6 +16,7 @@ knitr::opts_chunk$set(out.width = "300px")
 # Load packages
 library(knitr)
 library(tidyverse)
+library(kableExtra)
 ```
 
 ```{r, include=FALSE}
@@ -27,11 +32,17 @@ child_df <- child_df %>%
   filter(redcap_event_name == "child_baseline_arm_1")
 ```
 
-## Data Description
+## Introduction
 
-The data set is a survey study with 49 pairs of children and their mothers at birth. The main interest of this study is to examine how smoking during pregnancy (SDP) and environmental tobacco smoke (ETS) exposure will affect self-regulation, externalizing behavior, and substance use on children. This study is based on a previous study that recorded the smoking exposure from pregnancy to 6 months postpartum, and these 49 pairs of children and mothers are randomly and recruited to the current study. In addition to the previous records, this data set contains demographic information of mothers and children, their substance use habits, and the evaluations of their self-regulation, externalizing behavior, and parental knowledge. Also, the survey asks mothers to reflect whether the children were exposed to smoking from 0 to 6 months until 5 years postpartum.
+Smoking is well known to be damaged to human health, and its impact can be transferred from parents to their babies. Maternal smoking during pregnancy (SDP) can cause many health problems in infants at birth, and it can also have a long-term effect during infant neurodevelopment [@Wehby]. According to the National Center for Health Statistics, although the percentage of mothers who smoked cigarettes during pregnancy has declined by more than one-third, there were still 4.6% mothers let their infants exposed to the damage from smoking in 2021 [@Martin]. On the other hand, environment tobacco smoke (ETS) exposure could also impact children health condition and development. When compared to the peers who have not been exposed, children who had been exposed to household secondhand smoke were more likely to suffer from neurobehavior issues [@Elbeeh].
 
-## Data Processing
+Previous literatures have been studying how these factors, SDP and ETS, impact the neural development and behavior in children. A prospective study found that prenatal exposure to ETS was associated with lower self-contingency in infants [@Amy]. This is consistent with the result of a study conducted in rural areas of Guizhou, China that two-year old children were likely to have lower cognitive and language scores if their mothers experienced ETS exposure during pregnancy [@He]. Rashidi et al. found a significant inverse relationship between ETS high school students’ self-regulation and achievement [@Rashidi]. However, no present literature has examined the long-term effect of SDP combining with ETS exposure both during infant and teenager period. In this study, we conduct an exploratory analysis to examine the association of SBP and ETS with self-regulation, externalizing behavior, and substance use on children. 
+
+## Methods
+
+### Data Description
+
+The data set is a survey study based on intervention study conducted about 10 years ago [@Risica]. In the original study, 1253 eligible pregnant mothers exposed to smoking were selected, and 738 of them were enrolled in the study after randomization. They were randomized into intervention and control group to test the efficacy of tailored video against prenatal ETS. This study recorded the smoking exposure from pregnancy to 6 months postpartum both qualitatively and quantitatively by measuring nicotine in urine. The current study recruited a subset of 100 mothers with their children to follow up how SDP and ETS exposure affect self-regulation, externalizing behavior, and substance use on children. In addition to the previous records, this data set contains demographic information of mothers and children, their substance uses habits, and the evaluations of their self-regulation, externalizing behavior, and parental knowledge. Also, the survey asks mothers to reflect whether the children were exposed to smoking from 0 to 6 months until 5 years postpartum. The current available data set for children had 49 observations and 595 variables, and the one for parents have 51 observations and 711 variables. After joining these two data sets and roughly select variables related to the aim of this study, 49 observations with 106 variables were left.
 
 ```{r}
 # sum of race selected
@@ -231,15 +242,20 @@ df_tobacco$swan_hyperactive <- parent_df$swan_hyperactive[match(df_tobacco$paren
 
 ```
 
-We change outliers to the maximum possible or observed values. For example, in the question "on how many of the past 30 days did you smoke cigarettes?", we change all values above 30 into 30 days. For the questionnaire responses, if there are some responses missing, we use the non-missing values approximate the participant's answer (observed mean for average response; observed mean times the number of questions for sum). Otherwise, the number of complete data within each type of questionnaire would be too small.
+### Data Processing
 
-## Data Quality
+We changed outliers to the maximum possible of observed values. For example, in the question "on how many of the past 30 days did you smoke cigarettes?", we changed all values above 30 into 30 days. For the questionnaire responses, for example questions related to self-regulation scores, we used the non-missing values approximate the participant's answer if missing. If the variable corresponds to a single response, we used the average from the observed values to impute the missing value; if the variable corresponds to the sum of scores from several questions, we used the overall mean from observed values times the number of questions to impute this missing value. Otherwise, the number of complete data within each type of questionnaire would be too small. Since the number of records is low compared to the number of variables, using multiple imputation would not be ideal for this data set.
+
+
+## Results
 
 ### Missing Data
 
-For survey data, it's common to have many missing values. In this survey, the demographic variable race is presented as checkbox for participants where 0 means the participant didn't check the corresponding option, and thus this variable doesn't have missingness. We then use the number of races checked as indicator to explore missing patterns. There are 13 children didn't check any race options, and 12 of them miss all child-related information (Fig. 1). Moreover, one of them misses all information from the previous study. There are 8 parents didn't check any race options, and all of them miss all parent-related information in the current survey. 7 observations even miss all information related to the current survey. This causes the actual data size to be even smaller.
+For survey data across two different studies, missing values are expected to be present. At the summary level, 78 variables have missing values, and the missing proportion is over 20% for most of them. The variables related to mother smoking or substance use habits have the highest missing proportion about 90%, but this is due to that, for example, the number of cigarettes for the last 7 days would be NA if they were not current smokers. However, we didn’t change them to 0 since 0 could mean that they didn’t smoke over last 7 days while not quit smoking yet. Besides, missingness in other variables is probably because the participants decline to answer or due to loss of follow-up. 
 
-Besides, there are missing patterns within each category of variables For example, some observations miss all substance use information instead of only one or two responses missing, implying an occurrence pattern (Fig. 2).
+In this survey, the demographic variable race is presented as checkbox for participants where 0 means the participant didn't check the corresponding option, and thus this variable doesn't have missingness. We then use the number of races checked as indicator to explore missing patterns. There are 13 children didn't check any race options, and 12 of them miss all child-related information (Fig. 1). Moreover, one of them misses all information from the previous study. There are 8 parents didn't check any race options, and all of them miss all parent-related information in the current survey. 7 observations even miss all information related to the current survey. These records mentioned above are not removed for the following analysis, but it is necessary to notice that the actual, valid data size could be even smaller than 49.
+
+In addition, there are missing patterns within each category of variables For example, some observations miss all substance use information instead of only one or two responses missing, implying an occurrence pattern (Fig. 2). It could be that these two participants have no substance use habits at all, but it could imply some participants tend to decline several related questions altogether.
 
 ```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Missing patterns observed in the data. The rows represent missing in the all information related tp the previous study, parent information, and children information in the current study, respectively."}
 include_graphics(path = "missing_pattern.png")
@@ -249,9 +265,9 @@ include_graphics(path = "missing_pattern.png")
 include_graphics(path = "missing_pattern_2.png")
 ```
 
-### Consistency
+### Correlation Within Smoking Exposure
 
-We also checked the consistency between related variables to see if the quality of this survey data is good. There are two questions related to the smoking habit of mothers: "In the past 6 months, how often have you used tobacco products?" and "On how many of the past 30 days did you smoke cigarettes?" We assume the responses are correlated, and they should answer yes on the first question if the number of cigarettes is more than 0. However, we observe a strong inconsistency between the responses (Fig. 3). Most participants who responded "never" or "once or twice" reported 0 days of smoking in the past month, but 2 participants responded 30 days. This may imply that they responded one question incorrectly or misinterpreted the question.
+We are interested in the association between SBP and ETS related variables, and this can also reflect the the consistency among related variables to see if the quality of this survey data is good. There are two questions related to the smoking habit of mothers: "In the past 6 months, how often have you used tobacco products?" and "On how many of the past 30 days did you smoke cigarettes?" We assume the responses are correlated, and they should answer yes on the first question if the number of cigarettes is more than 0. However, we observe a strong inconsistency between the responses (Fig. 3). Most participants who responded "never" or "once or twice" reported 0 days of smoking in the past month, but 2 participants responded 30 days. This may imply that they responded one question incorrectly or misinterpreted the question.
 
 ```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Number of days smoking in the past 30 days versus the tobacco usage of mothers in the past 6 months. No participants responded monthly so this option is removed from the plot."}
 include_graphics(path = "consistent.png")
@@ -259,8 +275,9 @@ include_graphics(path = "consistent.png")
 
 In the previous study, the urine cotinine, a marker for nicotine metabolite, was measured for mothers at 34 weeks gestation and measured for both mothers and babies at 6 months postpartum. We see the nicotine at 34 weeks gestation is a good indicator when comparing the number of smoking exposure responded from 16 to 32 weeks at pregnancy (Fig. 4). 
 
-We combined all responses from 0 to 6 months in the previous and current studies into a new exposure variable, and we want to check if cotinine is still a good indicator for exposure (Fig. 5). A few babies have relatively high cotinine values even if no smoking exposure reported and their mothers had low cotinine values. Also, we only see expected correlation between maternal and child cotinine values in the subset with smoking exposure reported. This result is counterintuitive and may imply some inconsistency or entry errors in our data.
+We combine all responses from 0 to 6 months in the previous and current studies into a new exposure variable, and we want to check if cotinine is still a good indicator for exposure (Fig. 5). A few babies have relatively high cotinine values even if no smoking exposure reported and their mothers had low cotinine values. Also, we only see expected correlation between maternal and child cotinine values in the subset with smoking exposure reported. This result is counterintuitive and may imply some inconsistency or entry errors in our data.
 
+To look at the association between prenatal and postnatal smoking exposure, we sum over the smoking reported before 32 weeks as SDP intensity, and we sum over the smoking reported from 6 months to 5 years as the ETS intensity. These two variables are positively correlated based on the jittered scatterplot (Fig. 6). The correlation for the complete observation is 0.42 with p-value 0.004. Most mothers who didn't smoke during pregnancy tend to have low ETS, and mothers with an SDP intensity $\geq$ 2 tend to smoke afterwards. Interestingly, some mothers have high ETS intensity reported even though they didn't smoke during pregnancy. This could be due to that the intensity is only the sum of observed values.
 
 ```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Urine cotinine from mothers at 34 weeks gestation versus the number of smoking exposure reported . The red dashed line proposed at 40 ug/mL can separate the data clearly."}
 include_graphics(path = "cotimean_1.png")
@@ -270,9 +287,12 @@ include_graphics(path = "cotimean_1.png")
 include_graphics(path = "cotimean_2.png")
 ```
 
-## Questionnaire Evaluation
+```{r, include=TRUE, echo = FALSE, fig.align="center", fig.cap="Association between SDP intensity (exposure before 32 weeks) and ETS intensity (exposure from 6 months to 5 years old). Points are jittered and a regression line is fit."}
+include_graphics(path = "SDP_ETS.png")
+```
+### Questionnaire Evaluation
 
-In this survey, there are four questionnaires presented to the participants: Brief Problem Monitor, Emotion Regulation, SWAN Rating for ADHD, and Parental Knowledge. We are mainly interested in the first three and if they are associated with smoking exposure. We observe strong correlations within Brief Problem Monitor and SWAN Rating (Fig. 6, 7). Especially, we see many children are suspected to be ADHD based on the SWAN Rating responded by parents. This becomes susceptible whether this prevalence of ADHD relates to the smoking exposure since the we saw different levels of exposure. It is possible that he parents' responses don't reflect the actual behavior of their children, or the children in this data set are likely to be ADHD at the baseline. Also, the number of ASD diagnosized and suspected cases is too small, so we decided not to explore more on that variable. In addition, we also look at the correlations between answers from children and parents on child for the same survey, but none of them are high.
+In this survey, there are four questionnaires presented to the participants: Brief Problem Monitor, Emotion Regulation, SWAN Rating for ADHD, and Parental Knowledge. We are mainly interested in the first three and if they are associated with smoking exposure. We observe strong correlations within Brief Problem Monitor and SWAN Rating (Fig. 7, 8). Especially, we see many children are suspected to be ADHD based on the SWAN Rating responded by parents. This becomes susceptible whether this prevalence of ADHD relates to the smoking exposure since the we saw different levels of exposure. It is possible that he parents' responses don't reflect the actual behavior of their children, or the children in this data set are likely to be ADHD at the baseline. Also, the number of ASD diagnosed and suspected cases is too small, so we decided not to explore more on that variable. In addition, we also look at the correlations between answers from children and parents on child for the same survey, but none of them are high.
 
 ```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="250px", fig.cap="Sum of responses related to attention problems and externalizing problems responded by children."}
 include_graphics(path = "cor_1.png")
@@ -282,9 +302,11 @@ include_graphics(path = "cor_1.png")
 include_graphics(path = "cor_2.png")
 ```
 
-## Prenatal/Postnatal Exposure with Self-regulation
+### Prenatal/Postnatal Exposure with Self-regulation
 
-We focus on the counts of prenatal and postnatal exposures as the severity of exposures, cotinine values, and indicators whether mothers smoked during pregnancy and at 6 month postpartum combined from previous and the current studies. We want check their associations with the questionnarie responses. Among all pairwise comparisons, we see that the the indicator whether mothers smoked at 6 month postpartum can explain the attention problems somewhat (Fig. 8). Also, it also correlated with the SWAN inattentive scores (Fig. 9). Most observations are likely inattentive ADHD if they were exposed to smoking at 6 month postpartum. This may imply that smoking exposure at 6 month postpartum is related to attention problems on children overall.
+We focus on the counts of prenatal and postnatal exposures as the severity of exposures, cotinine values, and indicators whether mothers smoked during pregnancy and at 6 month postpartum combined from previous and the current studies. We want check their associations with the questionnarie responses. Among all pairwise comparisons, we see that the the indicator whether mothers smoked at 6 month postpartum can explain the attention problems somewhat (Fig. 9). Also, it also correlated with the SWAN inattentive scores (Fig. 10). Most observations are likely inattentive ADHD if they were exposed to smoking at 6 month postpartum. This may imply that smoking exposure at 6 month postpartum is related to attention problems on children overall.
+
+We then look at effects of the composite smoking exposure (SBP intensity $\geq$ 1; ETS intensity $\geq$ 1) on another self-regulation criteria, the Brief Problem Monitor (Table 1). In all three problem aspects, the mean score is the highest in exposed to both group, then neither group has the lowest score. The difference among groups is significant in attention and internalizing problems. 
 
 ```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="200px", fig.cap="Sum of attention problems reported by children versus exposure to smoking at 6 month postpartum."}
 include_graphics(path = "cor_3.png")
@@ -294,17 +316,31 @@ include_graphics(path = "cor_3.png")
 include_graphics(path = "cor_4.png")
 ```
 
-We also look at whether smoking exposure is related to substance use of children. However, the number of observations with substance use is too small, so it is not easy to find a clear pattern or draw a conclusion (Fig. 10).
+```{r, include = TRUE, echo = F}
+tb_composite <- readRDS("tb_composite.RDS")
+tb_composite[, 1:4] %>% 
+  kbl(caption = "Sum of responses of Brief Problem Monitor related to attention, externalizing, and internalizing problems on child stratified by smoking exposure.",
+      align = "c",
+      booktabs = T) %>%
+    kable_styling(full_width=F, latex_options = c('HOLD_position'))
+```
 
-```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="300px", fig.cap="Urine Cotinine at 34 weeks versus children drinking alcogol ever. The number of observations with using alcohol is too low to draw a clear pattern."}
+We also look at whether smoking exposure is related to substance use of children. At first, due to the number of observations with substance use is too small, it is not easy to find a clear pattern or draw a conclusion (Fig. 11). However, after coloring by ETS (intensity $\geq$ 1), we could see that teenagers with either SDP shown by urine cotinine or ETS are likely to use substance like alcohol.
+
+```{r, include=TRUE, echo = FALSE, fig.align="center", out.width="300px", fig.cap="Urine Cotinine at 34 weeks versus children drinking alcogol ever colored by ETS."}
 include_graphics(path = "cor_5.png")
 ```
 
-## Conclusion and Limitations
+## Discussion
 
-Based on our exploratory analysis, we create some indicator variables for smoking exposure and severity based on the previous and current studies, and the exposure is correlated with the marker urine cotinine from mothers at least. We also see that whether the child exposed to smoking at 6 months postpartum is correlated with the attention problems in Brief Problem Monitor and SWAN Rating. 
+Based on our exploratory analysis, we create some indicator variables for smoking exposure and severity based on the previous and current studies for prenetal and postnatal ETS exposure, and the prenatal exposure is correlated with the marker urine cotinine from mothers at least. We also see that whether the child exposed to smoking at 6 months postpartum is correlated with the attention problems in Brief Problem Monitor and SWAN Rating. Meanwhile, we observe the positive association between SBP and ETS intensity. These two kinds of exposure also seem to have additive effects on self-regularization and substance use in children.
 
 However, the quality of this data is not good, especially that the number of complete cases with both parent and child information about smoking and self-regulation is too small. Thus, we shouldn't be confident in any findings because it only represents a small subset of the population. Also, the inconsistency in the data makes the answers of the survey less trustworthy, and we may doubt whether the relationship we find reflect the truth or not.
+
+
+## Conclusion
+
+In our study, we examine the association between SBP and ETS exposure and how they affect the neural development of children across an intervention study and a survey study. We use both qualitative criteria based on participant answers and quantitative measurements from urine cotinine as indicators for smoking exposure. From our exploratory analysis, we found that SBP and ETS could cause self-regularization problems and early substance usage in teenagers. This analysis can be used as a guidance when the answers of 100 pairs will be collected in the future, and it can also serve as EDA for future regression analysis. 
 
 ## Data Privacy
 
@@ -313,3 +349,7 @@ The data is provided by Dr. Lauren Micalizzi from the Department Behavioral and 
 ## Code Availability
 
 The code used to analyze this data can be found on: https://github.com/RuBBiT-hj/PHP2550_Project1. Although the data cannot be accessed, the code contains the steps of processing and how we explore among different values with the detailed comments.
+
+\newpage
+
+## References

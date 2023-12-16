@@ -4,6 +4,7 @@ library(mice)
 library(GGally)
 library(UpSetR)
 library(naniar)
+library(tableone)
 
 # Load data
 df_raw <- read.csv("project1.csv") # raw df
@@ -402,7 +403,6 @@ df_tobacco %>%
   geom_jitter(aes(x = previous_32wk, y = cotimean_34wk))
 
 df_tobacco$SDP <- ifelse(df_tobacco$previous_32wk > 1, 1, 0)
-
 
 
 ggplot()+
@@ -961,11 +961,41 @@ df_tobacco %>%
   labs(x = "Exposed", y = "SWAN inattentive",
        color = "ADHD likely")
 
+df_tobacco$ETS <- factor(ifelse(df_tobacco$pp_5yr>0, 1, 0))
 
 df_tobacco %>% 
   ggplot() +
-  geom_jitter(aes(x = alc_ever, y = cotimean_34wk), width = 0.1, height = 0.1,
+  geom_jitter(aes(x = alc_ever, y = cotimean_34wk, color = ETS), width = 0.1, height = 0.1,
               alpha = 0.5) +
   scale_x_continuous(breaks = c(0,1))+
   theme_minimal()+
   labs(x = "Alcohol Ever", y = "Urine Cotinine at 34 Weeks")
+
+# ----
+# Look at SBP versus ETS
+set.seed(1)
+df_tobacco %>% 
+  ggplot() +
+  geom_jitter(aes(x = previous_32wk, y = pp_5yr), width = 0.1, height = 0.1,
+              alpha = 0.6) +
+  stat_smooth(aes(x = previous_32wk, y = pp_5yr),
+              method = "lm", 
+              formula = y ~ x, 
+              geom = "smooth") +
+  theme_minimal() +
+  labs(x = "SDP Intensity", y = "ETS Intensity")
+  
+df_tobacco <- df_tobacco %>% 
+  mutate(composite = case_when(SDP == 1 & ETS == 1 ~ "Both",
+                               SDP == 1 ~ "SDP",
+                               ETS == 1 ~ "ETS",
+                               ETS == 0 ~ "Neither",
+                               TRUE ~ NA))
+tb_composite <- CreateTableOne(vars = c("bpm_att_p_approx", "bpm_ext_p_approx", "bpm_int_p_approx"),
+               strata = c("composite"),
+               data = df_tobacco) 
+tb_composite <- print(tb_composite)
+rownames(tb_composite) <- c("n", "BPM Attention", "BPM Externalizing", 
+                            "BPM Internalizing")
+saveRDS(tb_composite, "tb_composite.RDS")
+
